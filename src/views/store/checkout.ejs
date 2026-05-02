@@ -1,0 +1,64 @@
+<div class="max-w-2xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+  <h1 class="text-3xl font-bold mb-8">Thanh toán</h1>
+  <form id="checkout-form" class="space-y-6">
+    <div class="bg-white p-6 rounded-lg shadow-sm space-y-4">
+      <h2 class="font-semibold text-lg">Thông tin giao hàng</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <input type="text" name="name" placeholder="Họ tên" required class="w-full px-3 py-2 border rounded-lg">
+        <input type="email" name="email" placeholder="Email" required class="w-full px-3 py-2 border rounded-lg">
+        <input type="tel" name="phone" placeholder="Số điện thoại" required class="w-full px-3 py-2 border rounded-lg">
+        <input type="text" name="city" placeholder="Tỉnh/Thành phố" required class="w-full px-3 py-2 border rounded-lg">
+      </div>
+      <input type="text" name="address" placeholder="Địa chỉ chi tiết" required class="w-full px-3 py-2 border rounded-lg">
+      <textarea name="note" placeholder="Ghi chú đơn hàng (tùy chọn)" rows="2" class="w-full px-3 py-2 border rounded-lg"></textarea>
+    </div>
+
+    <div class="bg-white p-6 rounded-lg shadow-sm">
+      <h2 class="font-semibold text-lg mb-4">Phương thức thanh toán</h2>
+      <label class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:border-indigo-500">
+        <input type="radio" name="payment_method" value="cod" checked> Thanh toán khi nhận hàng (COD)
+      </label>
+      <label class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:border-indigo-500 mt-2">
+        <input type="radio" name="payment_method" value="stripe"> Thẻ tín dụng (Stripe)
+      </label>
+    </div>
+
+    <button type="submit" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700">Đặt hàng</button>
+  </form>
+</div>
+
+<script>
+document.getElementById('checkout-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = new FormData(e.target);
+
+  // Get cart items
+  const cartRes = await fetch('/api/store/cart');
+  const cart = await cartRes.json();
+
+  if (!cart.items?.length) { alert('Giỏ hàng trống'); return; }
+
+  const res = await fetch('/api/store/checkout', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      items: cart.items.map(i => ({ product_id: i.product_id, variant_id: i.variant_id, quantity: i.quantity })),
+      billing: {
+        name: form.get('name'),
+        email: form.get('email'),
+        phone: form.get('phone'),
+        address: { line1: form.get('address'), city: form.get('city') },
+      },
+      payment_method: form.get('payment_method'),
+      customer_note: form.get('note'),
+    }),
+  });
+
+  const data = await res.json();
+  if (data.order) {
+    window.location.href = `/checkout/success?order=${data.order.order_number}`;
+  } else {
+    alert(data.error || 'Đặt hàng thất bại');
+  }
+});
+</script>

@@ -1,0 +1,158 @@
+<div class="space-y-6">
+  <h1 class="text-2xl font-bold">WordPress Migration</h1>
+
+  <!-- Step 1: Connect -->
+  <div class="bg-white rounded-xl shadow-sm p-6" id="step-connect">
+    <h2 class="font-semibold text-lg mb-4">1. Kết nối nguồn dữ liệu</h2>
+    <div class="flex gap-4 mb-4">
+      <button onclick="setConnType('database')" id="btn-db" class="px-4 py-2 rounded-lg text-sm bg-indigo-600 text-white">Database (MySQL)</button>
+      <button onclick="setConnType('api')" id="btn-api" class="px-4 py-2 rounded-lg text-sm bg-gray-200 text-gray-700">REST API</button>
+    </div>
+
+    <form id="db-form" class="space-y-3" onsubmit="return connect(event, 'database')">
+      <div class="grid grid-cols-2 gap-3">
+        <input type="text" name="host" placeholder="DB Host" value="localhost" class="px-3 py-2 border rounded-lg text-sm">
+        <input type="text" name="port" placeholder="Port" value="3306" class="px-3 py-2 border rounded-lg text-sm">
+        <input type="text" name="database" placeholder="Database name" class="px-3 py-2 border rounded-lg text-sm">
+        <input type="text" name="user" placeholder="User" value="root" class="px-3 py-2 border rounded-lg text-sm">
+        <input type="password" name="password" placeholder="Password" class="px-3 py-2 border rounded-lg text-sm">
+      </div>
+      <button type="submit" class="bg-indigo-600 text-white px-6 py-2 rounded-lg text-sm hover:bg-indigo-700">Kết nối</button>
+    </form>
+
+    <form id="api-form" class="space-y-3 hidden" onsubmit="return connect(event, 'api')">
+      <input type="url" name="apiUrl" placeholder="https://your-wp-site.com" class="w-full px-3 py-2 border rounded-lg text-sm">
+      <div class="grid grid-cols-2 gap-3">
+        <input type="text" name="apiUser" placeholder="WP Username" class="px-3 py-2 border rounded-lg text-sm">
+        <input type="password" name="apiPass" placeholder="WP App Password" class="px-3 py-2 border rounded-lg text-sm">
+      </div>
+      <button type="submit" class="bg-indigo-600 text-white px-6 py-2 rounded-lg text-sm hover:bg-indigo-700">Kết nối</button>
+    </form>
+    <p id="connect-status" class="text-sm mt-2"></p>
+  </div>
+
+  <!-- Step 2: Discover -->
+  <div class="bg-white rounded-xl shadow-sm p-6 hidden" id="step-discover">
+    <h2 class="font-semibold text-lg mb-4">2. Khám phá dữ liệu</h2>
+    <button onclick="discover()" class="bg-indigo-600 text-white px-6 py-2 rounded-lg text-sm hover:bg-indigo-700">Quét dữ liệu</button>
+    <div id="inventory" class="mt-4"></div>
+  </div>
+
+  <!-- Step 3: Migrate -->
+  <div class="bg-white rounded-xl shadow-sm p-6 hidden" id="step-migrate">
+    <h2 class="font-semibold text-lg mb-4">3. Migration</h2>
+    <div class="flex gap-3 mb-4">
+      <button onclick="startMigration('dry')" class="border border-indigo-600 text-indigo-600 px-6 py-2 rounded-lg text-sm hover:bg-indigo-50">Dry Run</button>
+      <button onclick="startMigration('full')" class="bg-indigo-600 text-white px-6 py-2 rounded-lg text-sm hover:bg-indigo-700">Full Migration</button>
+    </div>
+    <div id="migration-progress" class="hidden">
+      <div class="w-full bg-gray-200 rounded-full h-2 mb-2"><div id="progress-bar" class="bg-indigo-600 h-2 rounded-full transition-all" style="width:0%"></div></div>
+      <p id="progress-text" class="text-sm text-gray-500"></p>
+    </div>
+    <div id="migration-errors" class="mt-4"></div>
+  </div>
+
+  <!-- Step 4: Report -->
+  <div class="bg-white rounded-xl shadow-sm p-6 hidden" id="step-report">
+    <h2 class="font-semibold text-lg mb-4">4. Báo cáo</h2>
+    <div id="report"></div>
+  </div>
+</div>
+
+<script>
+let connType = 'database';
+
+function setConnType(type) {
+  connType = type;
+  document.getElementById('db-form').classList.toggle('hidden', type !== 'database');
+  document.getElementById('api-form').classList.toggle('hidden', type !== 'api');
+  document.getElementById('btn-db').className = `px-4 py-2 rounded-lg text-sm ${type === 'database' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700'}`;
+  document.getElementById('btn-api').className = `px-4 py-2 rounded-lg text-sm ${type === 'api' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700'}`;
+}
+
+async function connect(e, type) {
+  e.preventDefault();
+  const form = new FormData(e.target);
+  const body = { type };
+  for (const [k, v] of form.entries()) body[k] = v;
+
+  const res = await api('/api/admin/migrate/connect', { method: 'POST', body: JSON.stringify(body) });
+  const status = document.getElementById('connect-status');
+
+  if (res?.ok) {
+    status.textContent = '✓ Kết nối thành công!';
+    status.className = 'text-sm text-green-600';
+    document.getElementById('step-discover').classList.remove('hidden');
+  } else {
+    status.textContent = '✗ ' + (res?.error || 'Kết nối thất bại');
+    status.className = 'text-sm text-red-600';
+  }
+  return false;
+}
+
+async function discover() {
+  const res = await api('/api/admin/migrate/discover', { method: 'POST' });
+  if (!res?.inventory) return;
+
+  const inv = res.inventory;
+  document.getElementById('inventory').innerHTML = `
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+      <div class="bg-gray-50 p-3 rounded-lg"><p class="text-xs text-gray-500">Products</p><p class="text-xl font-bold">${inv.products}</p></div>
+      <div class="bg-gray-50 p-3 rounded-lg"><p class="text-xs text-gray-500">Posts</p><p class="text-xl font-bold">${inv.posts}</p></div>
+      <div class="bg-gray-50 p-3 rounded-lg"><p class="text-xs text-gray-500">Pages</p><p class="text-xl font-bold">${inv.pages}</p></div>
+      <div class="bg-gray-50 p-3 rounded-lg"><p class="text-xs text-gray-500">Users</p><p class="text-xl font-bold">${inv.users}</p></div>
+      ${inv.orders ? `<div class="bg-gray-50 p-3 rounded-lg"><p class="text-xs text-gray-500">Orders</p><p class="text-xl font-bold">${inv.orders}</p></div>` : ''}
+      ${inv.categories ? `<div class="bg-gray-50 p-3 rounded-lg"><p class="text-xs text-gray-500">Categories</p><p class="text-xl font-bold">${inv.categories}</p></div>` : ''}
+    </div>
+    <p class="text-sm text-gray-500 mt-3">Ước tính: ${inv.estimatedTime}</p>
+  `;
+  document.getElementById('step-migrate').classList.remove('hidden');
+}
+
+async function startMigration(mode) {
+  document.getElementById('migration-progress').classList.remove('hidden');
+
+  if (mode === 'dry') {
+    const res = await api('/api/admin/migrate/dry-run', { method: 'POST' });
+    if (res?.preview) {
+      document.getElementById('progress-text').textContent = 'Dry run hoàn tất — xem preview bên dưới';
+      document.getElementById('progress-bar').style.width = '100%';
+      toast('Dry run hoàn thành');
+    }
+    return;
+  }
+
+  await api('/api/admin/migrate/start', { method: 'POST' });
+
+  // Poll status
+  const poll = setInterval(async () => {
+    const status = await api('/api/admin/migrate/status');
+    if (!status) return;
+
+    document.getElementById('progress-bar').style.width = status.progress + '%';
+    document.getElementById('progress-text').textContent = `${status.current} — ${status.progress}%`;
+
+    if (status.errors?.length) {
+      document.getElementById('migration-errors').innerHTML =
+        `<p class="text-sm text-red-600">${status.errors.length} lỗi</p>`;
+    }
+
+    if (status.state === 'completed') {
+      clearInterval(poll);
+      document.getElementById('step-report').classList.remove('hidden');
+      const report = await api('/api/admin/migrate/report');
+      if (report?.report) {
+        document.getElementById('report').innerHTML = `
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            ${Object.entries(report.report.migrated || {}).map(([k, v]) =>
+              `<div class="bg-gray-50 p-3 rounded-lg"><p class="text-xs text-gray-500">${k}</p><p class="text-xl font-bold">${v}</p></div>`
+            ).join('')}
+          </div>
+          <p class="text-sm text-gray-500 mt-3">Lỗi: ${report.report.errors || 0}</p>
+        `;
+      }
+      toast('Migration hoàn tất!');
+    }
+  }, 2000);
+}
+</script>

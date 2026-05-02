@@ -1,0 +1,52 @@
+<div class="space-y-6">
+  <h1 class="text-2xl font-bold">Dashboard</h1>
+
+  <!-- Stats cards -->
+  <div class="grid grid-cols-2 lg:grid-cols-5 gap-4" id="stats">
+    <div class="bg-white rounded-xl shadow-sm p-4"><p class="text-sm text-gray-500">Sản phẩm</p><p class="text-2xl font-bold" id="stat-products">-</p></div>
+    <div class="bg-white rounded-xl shadow-sm p-4"><p class="text-sm text-gray-500">Đơn hàng</p><p class="text-2xl font-bold" id="stat-orders">-</p></div>
+    <div class="bg-white rounded-xl shadow-sm p-4"><p class="text-sm text-gray-500">Doanh thu</p><p class="text-2xl font-bold text-green-600" id="stat-revenue">-</p></div>
+    <div class="bg-white rounded-xl shadow-sm p-4"><p class="text-sm text-gray-500">Khách hàng</p><p class="text-2xl font-bold" id="stat-customers">-</p></div>
+    <div class="bg-white rounded-xl shadow-sm p-4"><p class="text-sm text-gray-500">Bài viết</p><p class="text-2xl font-bold" id="stat-posts">-</p></div>
+  </div>
+
+  <!-- Revenue chart -->
+  <div class="bg-white rounded-xl shadow-sm p-6">
+    <h2 class="font-semibold mb-4">Doanh thu 30 ngày</h2>
+    <canvas id="revenue-chart" height="100"></canvas>
+  </div>
+</div>
+
+<script>
+async function loadDashboard() {
+  const [statsRes, chartRes] = await Promise.all([
+    fetch('/api/admin/dashboard/stats'),
+    fetch('/api/admin/dashboard/charts?days=30'),
+  ]);
+
+  const { stats } = await statsRes.json();
+  document.getElementById('stat-products').textContent = stats.products;
+  document.getElementById('stat-orders').textContent = stats.orders;
+  document.getElementById('stat-revenue').textContent = stats.revenue.toLocaleString('vi-VN') + '₫';
+  document.getElementById('stat-customers').textContent = stats.customers;
+  document.getElementById('stat-posts').textContent = stats.posts;
+
+  const { chart } = await chartRes.json();
+  new Chart(document.getElementById('revenue-chart'), {
+    type: 'line',
+    data: {
+      labels: chart.map(d => new Date(d.date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })),
+      datasets: [{
+        label: 'Doanh thu',
+        data: chart.map(d => parseFloat(d.revenue)),
+        borderColor: '#4f46e5',
+        backgroundColor: 'rgba(79,70,229,0.1)',
+        fill: true,
+        tension: 0.4,
+      }],
+    },
+    options: { responsive: true, plugins: { legend: { display: false } } },
+  });
+}
+loadDashboard();
+</script>

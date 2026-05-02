@@ -1,0 +1,117 @@
+<div class="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+  <nav class="text-sm text-gray-500 mb-6">
+    <a href="/" class="hover:text-gray-700">Trang chủ</a> /
+    <a href="/products" class="hover:text-gray-700">Sản phẩm</a> /
+    <span class="text-gray-900"><%= product.name %></span>
+  </nav>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+    <!-- Images -->
+    <div>
+      <div class="aspect-square bg-gray-100 rounded-lg overflow-hidden mb-4" id="main-image">
+        <% if (product.featured_image) { %>
+          <img src="<%= product.featured_image %>" alt="<%= product.name %>" class="w-full h-full object-contain">
+        <% } %>
+      </div>
+      <% if (product.gallery && product.gallery.length > 0) { %>
+        <div class="grid grid-cols-4 gap-2">
+          <div class="aspect-square bg-gray-100 rounded cursor-pointer border-2 border-indigo-500 overflow-hidden" onclick="document.querySelector('#main-image img').src = '<%= product.featured_image %>'">
+            <img src="<%= product.featured_image %>" class="w-full h-full object-cover">
+          </div>
+          <% product.gallery.forEach(img => { %>
+            <div class="aspect-square bg-gray-100 rounded cursor-pointer border-2 border-transparent hover:border-indigo-300 overflow-hidden" onclick="document.querySelector('#main-image img').src = '<%= img.url %>'">
+              <img src="<%= img.url %>" alt="<%= img.alt || '' %>" class="w-full h-full object-cover">
+            </div>
+          <% }) %>
+        </div>
+      <% } %>
+    </div>
+
+    <!-- Product info -->
+    <div>
+      <h1 class="text-3xl font-bold text-gray-900 mb-2"><%= product.name %></h1>
+      <% if (product.brand_name) { %><p class="text-sm text-gray-500 mb-4">Thương hiệu: <%= product.brand_name %></p><% } %>
+
+      <div class="flex items-center gap-3 mb-6">
+        <span class="text-3xl font-bold text-indigo-600"><%= Number(product.price).toLocaleString('vi-VN') %>₫</span>
+        <% if (product.compare_at_price && product.compare_at_price > product.price) { %>
+          <span class="text-xl text-gray-400 line-through"><%= Number(product.compare_at_price).toLocaleString('vi-VN') %>₫</span>
+          <span class="bg-red-100 text-red-700 text-sm px-2 py-0.5 rounded">-<%= Math.round((1 - product.price / product.compare_at_price) * 100) %>%</span>
+        <% } %>
+      </div>
+
+      <% if (product.stock_quantity > 0) { %>
+        <p class="text-sm text-green-600 mb-4">✓ Còn hàng (<%= product.stock_quantity %> sản phẩm)</p>
+      <% } else { %>
+        <p class="text-sm text-red-600 mb-4">✗ Hết hàng</p>
+      <% } %>
+
+      <!-- Variants -->
+      <% if (product.type === 'variable' && product.variants && product.variants.length) { %>
+        <div class="mb-6">
+          <h3 class="text-sm font-medium text-gray-700 mb-2">Tùy chọn:</h3>
+          <div class="flex flex-wrap gap-2">
+            <% product.variants.forEach(v => { %>
+              <button class="px-4 py-2 border rounded-lg text-sm hover:border-indigo-500 hover:text-indigo-600 variant-btn"
+                      data-variant-id="<%= v.id %>" data-price="<%= v.price %>">
+                <%= v.name || Object.values(v.attributes || {}).join(' / ') %>
+              </button>
+            <% }) %>
+          </div>
+        </div>
+      <% } %>
+
+      <!-- Add to cart -->
+      <div class="flex items-center gap-4 mb-8">
+        <div class="flex items-center border rounded-lg">
+          <button class="px-3 py-2 text-gray-600 hover:text-gray-900" onclick="updateQty(-1)">−</button>
+          <input type="number" id="quantity" value="1" min="1" max="<%= product.stock_quantity %>" class="w-16 text-center border-0 focus:ring-0">
+          <button class="px-3 py-2 text-gray-600 hover:text-gray-900" onclick="updateQty(1)">+</button>
+        </div>
+        <button id="add-to-cart" class="flex-1 bg-indigo-600 text-white py-3 px-8 rounded-lg font-semibold hover:bg-indigo-700 transition"
+                data-product-id="<%= product.id %>">
+          Thêm vào giỏ
+        </button>
+      </div>
+
+      <!-- Description -->
+      <div class="border-t pt-6">
+        <h3 class="font-semibold mb-3">Mô tả sản phẩm</h3>
+        <div class="prose prose-sm max-w-none text-gray-600"><%- product.description || product.short_desc || '' %></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function updateQty(delta) {
+  const input = document.getElementById('quantity');
+  const newVal = parseInt(input.value) + delta;
+  if (newVal >= 1 && newVal <= parseInt(input.max)) input.value = newVal;
+}
+
+document.getElementById('add-to-cart')?.addEventListener('click', async function() {
+  const productId = this.dataset.productId;
+  const quantity = parseInt(document.getElementById('quantity').value);
+  const variantBtn = document.querySelector('.variant-btn.active');
+  const variantId = variantBtn?.dataset.variantId;
+
+  const res = await fetch('/api/store/cart/add', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ product_id: productId, variant_id: variantId, quantity }),
+  });
+
+  if (res.ok) {
+    this.textContent = '✓ Đã thêm';
+    setTimeout(() => { this.textContent = 'Thêm vào giỏ'; }, 2000);
+  }
+});
+
+document.querySelectorAll('.variant-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.variant-btn').forEach(b => b.classList.remove('active', 'border-indigo-500', 'text-indigo-600'));
+    this.classList.add('active', 'border-indigo-500', 'text-indigo-600');
+  });
+});
+</script>

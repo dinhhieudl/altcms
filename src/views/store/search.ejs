@@ -1,0 +1,28 @@
+<div class="max-w-4xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+  <h1 class="text-3xl font-bold mb-8">Tìm kiếm</h1>
+  <form method="GET" action="/search" class="mb-8">
+    <div class="flex gap-2">
+      <input type="text" name="q" value="<%= query %>" placeholder="Tìm kiếm sản phẩm..." class="flex-1 px-4 py-3 border rounded-lg text-lg" autofocus>
+      <button type="submit" class="bg-indigo-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-indigo-700">Tìm</button>
+    </div>
+  </form>
+
+  <% if (query) { %>
+    <p class="text-gray-500 mb-4">Tìm thấy <%= pagination.total %> kết quả cho "<%= query %>"</p>
+    <% if (products && products.length) { %>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+        <% products.forEach(p => { %>
+        <a href="/products/<%= p.slug %>" class="group">
+          <div class="aspect-square bg-gray-100 rounded-lg overflow-hidden">
+            <% if (p.featured_image) { %><img src="<%= p.featured_image %>" alt="<%= p.name %>" class="w-full h-full object-cover group-hover:scale-105 transition"><% } %>
+          </div>
+          <h3 class="mt-2 text-sm font-medium group-hover:text-indigo-600 truncate"><%= p.name %></h3>
+          <p class="text-sm text-indigo-600 font-semibold"><%= Number(p.price).toLocaleString('vi-VN') %>₫</p>
+        </a>
+        <% }) %>
+      </div>
+    <% } else { %>
+      <p class="text-gray-400 text-center py-12">Không tìm thấy kết quả nào.</p>
+    <% } %>
+  <% } %>
+</div>

@@ -1,0 +1,28 @@
+<div class="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+  <h1 class="text-3xl font-bold mb-8">Blog</h1>
+  <% if (posts && posts.length) { %>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <% posts.forEach(p => { %>
+      <a href="/blog/<%= p.slug %>" class="group flex gap-4">
+        <% if (p.featured_image) { %>
+          <img src="<%= p.featured_image %>" alt="<%= p.title %>" class="w-32 h-32 object-cover rounded-lg flex-shrink-0">
+        <% } %>
+        <div>
+          <h2 class="font-semibold text-lg group-hover:text-indigo-600"><%= p.title %></h2>
+          <% if (p.excerpt) { %><p class="text-sm text-gray-500 mt-1 line-clamp-2"><%= p.excerpt %></p><% } %>
+          <p class="text-xs text-gray-400 mt-2"><%= p.published_at ? new Date(p.published_at).toLocaleDateString('vi-VN') : '' %></p>
+        </div>
+      </a>
+      <% }) %>
+    </div>
+    <% if (pagination.totalPages > 1) { %>
+    <div class="flex justify-center gap-2 mt-8">
+      <% if (pagination.hasPrev) { %><a href="?page=<%= pagination.page - 1 %>" class="px-3 py-2 border rounded-lg text-sm">← Trước</a><% } %>
+      <span class="px-3 py-2 text-sm text-gray-500">Trang <%= pagination.page %>/<%= pagination.totalPages %></span>
+      <% if (pagination.hasNext) { %><a href="?page=<%= pagination.page + 1 %>" class="px-3 py-2 border rounded-lg text-sm">Tiếp →</a><% } %>
+    </div>
+    <% } %>
+  <% } else { %>
+    <p class="text-gray-500 text-center py-12">Chưa có bài viết nào.</p>
+  <% } %>
+</div>

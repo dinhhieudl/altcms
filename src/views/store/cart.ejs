@@ -1,0 +1,73 @@
+<div class="max-w-4xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+  <h1 class="text-3xl font-bold mb-8">Giỏ hàng</h1>
+  <div id="cart-content">
+    <p class="text-gray-500 text-center py-12">Đang tải giỏ hàng...</p>
+  </div>
+</div>
+
+<script>
+async function loadCart() {
+  const res = await fetch('/api/store/cart');
+  const data = await res.json();
+  const container = document.getElementById('cart-content');
+
+  if (!data.items || data.items.length === 0) {
+    container.innerHTML = '<p class="text-gray-500 text-center py-12">Giỏ hàng trống. <a href="/products" class="text-indigo-600 hover:underline">Mua sắm ngay</a></p>';
+    return;
+  }
+
+  let html = '<div class="space-y-4">';
+  let total = 0;
+
+  data.items.forEach((item, idx) => {
+    if (!item.product) return;
+    const p = item.product;
+    const subtotal = parseFloat(p.price) * item.quantity;
+    total += subtotal;
+
+    html += `
+      <div class="flex items-center gap-4 bg-white p-4 rounded-lg shadow-sm">
+        <img src="${p.featured_image || ''}" alt="${p.name}" class="w-20 h-20 object-cover rounded">
+        <div class="flex-1">
+          <a href="/products/${p.slug}" class="font-medium hover:text-indigo-600">${p.name}</a>
+          <p class="text-sm text-gray-500">${Number(p.price).toLocaleString('vi-VN')}₫</p>
+        </div>
+        <div class="flex items-center border rounded">
+          <button onclick="updateCart(${idx}, ${item.quantity - 1})" class="px-2 py-1">−</button>
+          <span class="px-3 py-1 text-sm">${item.quantity}</span>
+          <button onclick="updateCart(${idx}, ${item.quantity + 1})" class="px-2 py-1">+</button>
+        </div>
+        <p class="font-semibold w-24 text-right">${subtotal.toLocaleString('vi-VN')}₫</p>
+        <button onclick="removeFromCart(${idx})" class="text-red-500 hover:text-red-700">✕</button>
+      </div>`;
+  });
+
+  html += `</div>
+    <div class="mt-8 bg-white p-6 rounded-lg shadow-sm">
+      <div class="flex justify-between text-xl font-bold">
+        <span>Tổng cộng</span>
+        <span class="text-indigo-600">${total.toLocaleString('vi-VN')}₫</span>
+      </div>
+      <a href="/checkout" class="block mt-4 bg-indigo-600 text-white text-center py-3 rounded-lg font-semibold hover:bg-indigo-700">Thanh toán</a>
+    </div>`;
+
+  container.innerHTML = html;
+}
+
+async function updateCart(idx, qty) {
+  if (qty <= 0) return removeFromCart(idx);
+  await fetch(`/api/store/cart/${idx}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ quantity: qty }),
+  });
+  loadCart();
+}
+
+async function removeFromCart(idx) {
+  await fetch(`/api/store/cart/${idx}`, { method: 'DELETE' });
+  loadCart();
+}
+
+loadCart();
+</script>
