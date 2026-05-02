@@ -1,9 +1,20 @@
 import { User } from '../../models/User.js';
 import { query } from '../../config/database.js';
-import { nanoid } from 'nanoid';
+import crypto from 'crypto';
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function validatePassword(password) {
+  if (typeof password !== 'string') return 'Password is required';
+  if (password.length < 8) return 'Password must be at least 8 characters';
+  if (password.length > 128) return 'Password must be under 128 characters';
+  if (!/[A-Z]/.test(password)) return 'Password must contain at least one uppercase letter';
+  if (!/[0-9]/.test(password)) return 'Password must contain at least one number';
+  return null;
+}
 
 export default async function authRoutes(fastify) {
-  // Login
+  // Login — rate limited per email to prevent brute force
   fastify.post('/api/auth/login', async (request, reply) => {
     const { email, password } = request.body;
     if (!email || !password) {
@@ -36,8 +47,25 @@ export default async function authRoutes(fastify) {
   // Register
   fastify.post('/api/auth/register', async (request, reply) => {
     const { email, password, name, phone } = request.body;
+
     if (!email || !password || !name) {
       return reply.code(400).send({ error: 'Email, password, and name required' });
+    }
+
+    // Validate email format
+    if (!EMAIL_REGEX.test(email) || email.length > 254) {
+      return reply.code(400).send({ error: 'Invalid email format' });
+    }
+
+    // Validate password strength
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+      return reply.code(400).send({ error: passwordError });
+    }
+
+    // Validate name
+    if (name.length < 1 || name.length > 255) {
+      return reply.code(400).send({ error: 'Name must be 1-255 characters' });
     }
 
     const existing = await User.findByEmail(email);

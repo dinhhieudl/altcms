@@ -11,6 +11,7 @@ import { fileURLToPath } from 'url';
 
 import { config } from './config/app.js';
 import { authMiddleware } from './middleware/auth.js';
+import { sanitizeHook, csrfHook } from './middleware/sanitize.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { Redirect } from './models/Redirect.js';
 import { generateSchemaOrg } from './utils/schema-org.js';
@@ -70,6 +71,12 @@ export async function buildApp() {
 
   // Auth middleware
   app.addHook('preHandler', authMiddleware);
+
+  // Sanitize all POST/PUT/PATCH body inputs (XSS prevention)
+  app.addHook('preHandler', sanitizeHook);
+
+  // CSRF protection — validate Origin on state-changing requests
+  app.addHook('preHandler', csrfHook);
 
   // Global helpers for templates
   app.decorateReply('viewCtx', function (template, data = {}) {

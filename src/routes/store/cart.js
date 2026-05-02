@@ -36,7 +36,9 @@ export default async function cartRoutes(fastify) {
       const { nanoid } = await import('nanoid');
       sessionId = nanoid(24);
       reply.setCookie('cart_session', sessionId, {
-        path: '/', httpOnly: true, sameSite: 'lax', maxAge: 30 * 24 * 60 * 60,
+        path: '/', httpOnly: true, sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 30 * 24 * 60 * 60,
       });
     }
 

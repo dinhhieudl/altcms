@@ -6,6 +6,33 @@ import path from 'path';
 import fs from 'fs/promises';
 import { nanoid } from 'nanoid';
 
+// Magic bytes for allowed image types
+const MAGIC_BYTES = {
+  'image/jpeg': [0xFF, 0xD8, 0xFF],
+  'image/png': [0x89, 0x50, 0x4E, 0x47],
+  'image/gif': [0x47, 0x49, 0x46],
+  'image/webp': [0x52, 0x49, 0x46, 0x46], // RIFF header (WebP starts with RIFF)
+};
+
+function detectMimeType(buffer) {
+  for (const [mime, bytes] of Object.entries(MAGIC_BYTES)) {
+    if (buffer.length >= bytes.length) {
+      const match = bytes.every((b, i) => buffer[i] === b);
+      if (match) {
+        // Extra check for WebP: bytes 8-11 should be "WEBP"
+        if (mime === 'image/webp') {
+          if (buffer.length >= 12 && buffer[8] === 0x57 && buffer[9] === 0x45 && buffer[10] === 0x42 && buffer[11] === 0x50) {
+            return mime;
+          }
+          continue;
+        }
+        return mime;
+      }
+    }
+  }
+  return null;
+}
+
 export default async function mediaRoutes(fastify) {
   fastify.get('/api/admin/media', { preHandler: [requirePermission('media:read')] }, async (request) => {
     const { page, limit } = paginate(request.query, 50);
@@ -30,16 +57,21 @@ export default async function mediaRoutes(fastify) {
       return reply.code(413).send({ error: 'File too large' });
     }
 
-    if (!config.upload.allowedTypes.includes(data.mimetype)) {
-      return reply.code(400).send({ error: 'File type not allowed' });
+    // Verify file type by magic bytes (not just Content-Type header)
+    const detectedType = detectMimeType(buffer);
+    if (!detectedType) {
+      return reply.code(400).send({ error: 'Invalid image file — magic bytes do not match any allowed type' });
     }
+
+    // Use detected type, not client-provided type
+    const mimeType = detectedType;
 
     await fs.writeFile(filePath, buffer);
 
     const media = await Media.create({
       filename,
       original_name: data.filename,
-      mime_type: data.mimetype,
+      mime_type: mimeType,
       size: buffer.length,
       url: `/uploads/${filename}`,
       uploaded_by: request.user.id,

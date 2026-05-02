@@ -15,8 +15,12 @@ export function errorHandler(error, request, reply) {
   const statusCode = error.statusCode || 500;
   const message = statusCode === 500 ? 'Internal server error' : error.message;
 
-  reply.code(statusCode).send({
-    error: message,
-    ...(process.env.NODE_ENV === 'development' && { stack: error.stack }),
-  });
+  const response = { error: message };
+
+  // Only expose stack trace in development, and only on localhost
+  if (process.env.NODE_ENV === 'development' && ['127.0.0.1', '::1', 'localhost'].includes(request.hostname)) {
+    response.stack = error.stack;
+  }
+
+  reply.code(statusCode).send(response);
 }
