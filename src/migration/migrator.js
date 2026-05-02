@@ -138,7 +138,7 @@ export class Migrator {
 
   async _migrateUsers() {
     if (this.config.type !== 'database') return;
-    const [users] = await this.connection.execute('SELECT * FROM wp_users LIMIT 500');
+    const [users] = await this.connection.execute('SELECT * FROM wp_users');
 
     for (const u of users) {
       try {
@@ -189,7 +189,7 @@ export class Migrator {
   async _migrateProducts() {
     if (this.config.type !== 'database') return;
     const [products] = await this.connection.execute(
-      `SELECT p.*, pm.* FROM wp_posts p
+      `SELECT p.* FROM wp_posts p
        WHERE p.post_type = 'product' AND p.post_status = 'publish'`
     );
 

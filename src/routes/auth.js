@@ -1,5 +1,5 @@
-import { User } from '../../models/User.js';
-import { query } from '../../config/database.js';
+import { User } from '../models/User.js';
+import { query } from '../config/database.js';
 import crypto from 'crypto';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -36,7 +36,7 @@ export default async function authRoutes(fastify) {
     reply.setCookie('session_id', sessionResult.rows[0].id, {
       path: '/',
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: process.env.COOKIE_SECURE === 'true',
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60,
     });
@@ -85,7 +85,7 @@ export default async function authRoutes(fastify) {
     reply.setCookie('session_id', sessionResult.rows[0].id, {
       path: '/',
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: process.env.COOKIE_SECURE === 'true',
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60,
     });
